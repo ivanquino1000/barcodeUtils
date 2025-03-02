@@ -5,35 +5,26 @@ const util = require("util");
 // Promisify exec to use async/await
 const execFileAsync = util.promisify(execFile);
 
-/* const properties = {
-  DeviceID: "deviceId",
-  Name: "name",
-  JobCount: "jobCount",
-  PrinterPaperNames: "paperSizes",
-  Status: "status",
-}; */
 
 const properties = {
   DeviceID: "deviceId",
   Name: "name",
-  JobCount: "jobCount",
   PrinterPaperNames: "paperSizes",
-  PrinterStatus: "status",
+  Status: "status",
+  PrinterStatus: "printerStatus",
+  WorkOffline: "workOffline", // False - Printer online , True - Printer online  
 };
+
 
 // This function checks if the printer data is valid and parses the data
 function IsValidPrinter(printer) {
-  /* const printerData = {
-        deviceId: "",
-        name: "",
-        paperSizes: [],
-        status: "",
-      }; */
-
   const printerData = {
+    deviceId: "",
     name: "",
-    jobCount: "",
+    paperSizes: [],
     status: "",
+    printerStatus: "",
+    workOffline: "",
   };
 
   printer.split(/\r?\n/).forEach((line) => {
@@ -94,7 +85,7 @@ async function getPrinters() {
   try {
     const { stdout } = await execFileAsync("Powershell.exe", [
       "-Command",
-      "Get-Printer | Format-List",
+      "Get-CimInstance Win32_Printer | Format-List DeviceID,Name,PrinterPaperNames,Status,PrinterStatus,WorkOffline",
       //`Get-CimInstance Win32_Printer -Property DeviceID,Name,PrinterPaperNames,Status`,
     ]);
     return stdoutHandler(stdout);

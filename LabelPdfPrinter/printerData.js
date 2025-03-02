@@ -10,6 +10,8 @@ const properties = {
   Name: "name",
   PrinterPaperNames: "paperSizes",
   Status: "status",
+  PrinterStatus: "printerStatus",
+  WorkOffline: "workOffline", // False - Printer online , True - Printer online  
 };
 
 // This function checks if the printer data is valid and parses the data
@@ -19,11 +21,17 @@ function IsValidPrinter(printer) {
     name: "",
     paperSizes: [],
     status: "",
+    printerStatus: "",
+    workOffline: "",
   };
+
 
   printer.split(/\r?\n/).forEach((line) => {
     let [label, value] = line.split(":").map((el) => el.trim());
 
+    if (label === undefined || value === undefined) {
+      return;
+    }
     // handle array dots
     if (value.match(/^{(.*)(\.{3})}$/)) {
       value = value.replace("...}", "}");
@@ -76,12 +84,26 @@ async function getPrinters() {
   try {
     const { stdout } = await execFileAsync("Powershell.exe", [
       "-Command",
-      `Get-CimInstance Win32_Printer -Property DeviceID,Name,PrinterPaperNames,Status`,
+      "Get-CimInstance Win32_Printer | Format-List DeviceID,Name,PrinterPaperNames,Status,PrinterStatus,WorkOffline",
+      //`Get-CimInstance Win32_Printer -Property DeviceID,Name,PrinterPaperNames,Status`,
     ]);
     return stdoutHandler(stdout);
   } catch (error) {
     throw error;
   }
+}
+
+
+async function isPrinterAvailable(printerName) {
+  const printers = await getPrinters();
+  const printer = printers.find((printer) => printer.name === printerName);
+  if (!printer) {
+    console.log(`Printer ${printerName} not found.`);
+    return true;
+  }
+  console.log(`${printerName}  state: ` + printer.status);
+  if (printer.workOffline == "False") { return true } else { return false }
+
 }
 
 async function getPrinterStatus(printerName) {
@@ -98,4 +120,5 @@ async function getPrinterStatus(printerName) {
 module.exports = {
   getPrinters,
   getPrinterStatus,
+  isPrinterAvailable,
 };

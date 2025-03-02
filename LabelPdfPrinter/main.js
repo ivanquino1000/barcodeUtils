@@ -6,7 +6,7 @@ const os = require("os");
 const path = require("path");
 const { PDFDocument } = require("pdf-lib");
 const { print } = require("pdf-to-printer");
-const { getPrinters, getPrinterStatus } = require("./printerData.js");
+const { getPrinters, getPrinterStatus, isPrinterAvailable } = require("./printerData.js");
 const { select, Separator } = require("@inquirer/prompts");
 
 const exeDir = path.dirname(process.execPath);
@@ -159,10 +159,11 @@ async function printPDF(pdf) {
       sumatraPdfPath: localSumatraPdfPath,
       orientation: "landscape",
     };
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const isprinterReady = await checkPrinterStatus(pdf.printerName);
+    const isPrinterActive = await isPrinterAvailable(pdf.printerName);
 
-    const ready = await checkPrinterStatus(pdf.printerName);
-    
-    if (ready) {
+    if (!isPrinterActive || !isprinterReady) {
       const action = await select({
         message: `Error al Imprimir ${pdf.name}`,
         choices: [
@@ -178,6 +179,10 @@ async function printPDF(pdf) {
           },
         ],
       });
+      if (action === "cancel") {
+        console.log("Proceso cancelado.");
+        process.exit()
+      }
     }
 
     await print(pdf.path, options);
