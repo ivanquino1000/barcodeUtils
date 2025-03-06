@@ -1,0 +1,28 @@
+{
+    "name": "labelpdfprinter",
+    "version": "1.0.0",
+    "description": "Create a Multipage Label Pdf and send them to Print",
+    "main": "main.js",
+    "bin": "main.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node index.js"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@inquirer/prompts": "^7.3.2",
+        "dotenv": "^16.4.7",
+        "pdf-lib": "^1.17.1",
+        "pdf-to-printer": "^5.6.0",
+        "pkg": "^5.8.1"
+    },
+    "pkg": {
+        "targets": [
+            "node18-win-x64"
+        ]
+    },
+    "devDependencies": {
+        "@trivago/prettier-plugin-sort-imports": "^5.2.2"
+    }
+}

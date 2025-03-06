@@ -1,0 +1,2 @@
+// line command with node and electron npm packaged installed
+$env:PLAYWRIGHT_BROWSERS_PATH="./browser"; npx playwright install chromium

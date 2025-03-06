@@ -1,0 +1,34 @@
+{
+  "name": "barcode_printer",
+  "version": "1.0.0",
+  "description": "sync to the pos webapp",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "author": "ivan",
+  "license": "ISC",
+  "config": {},
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "electron-squirrel-startup": "^1.0.1",
+    "glob": "^11.0.1",
+    "node-notifier": "^10.0.1",
+    "os": "^0.1.2",
+    "playwright": "^1.50.1"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.6.1",
+    "@electron-forge/maker-deb": "^7.6.1",
+    "@electron-forge/maker-rpm": "^7.6.1",
+    "@electron-forge/maker-squirrel": "^7.6.1",
+    "@electron-forge/maker-zip": "^7.6.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.6.1",
+    "@electron-forge/plugin-fuses": "^7.6.1",
+    "@electron/fuses": "^1.8.0",
+    "electron": "^34.1.0"
+  }
+}

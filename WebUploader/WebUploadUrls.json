@@ -1,0 +1,32 @@
+{
+    "clients": [
+      {
+        "name": "soraza",
+        "Url": "https://soraza.arca.digital/items",
+        "WebAppType": "ArcaDigital",
+        "User": "admin.soraza@jbsistemas.com",
+        "Password": "@Misti456@"
+      },
+      {
+        "name": "larico",
+        "Url": "https://larico.arca.digital/items",
+        "WebAppType": "ArcaDigital",
+        "User": "admin.larico@jbsistemas.com",
+        "Password": "@Misti456@"
+      },
+      {
+        "name": "gri",
+        "Url": "https://gri.arca.digital/items",
+        "WebAppType": "ArcaDigital",
+        "User": "gri.admin@jbsistemas.com",
+        "Password": "@Misti456@"
+      },
+      {
+        "name": "rq",
+        "Url": "https://rq.arca.digital/items",
+        "WebAppType": "ArcaDigital",
+        "User": "admin.rq@jbsistemas.com",
+        "Password": "@Misti+@"
+      }
+    ]
+}

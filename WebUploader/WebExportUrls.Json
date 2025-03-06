@@ -1,0 +1,11 @@
+{
+    "clients": [
+      {
+        "name": "soraza",
+        "Url": "https://soraza.arca.digital/items",
+        "WebAppType": "ArcaDigital",
+        "User": "admin.soraza@jbsistemas.com",
+        "Password": "@Misti456@"
+      }
+    ]
+}

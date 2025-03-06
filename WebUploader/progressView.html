@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0px;
+            background-color: #282c35;
+        }
+        .progress-header{
+            color: #fff;
+            text-align: left;
+            margin-top: 20px;
+            margin-left: 10px;
+            margin-bottom: 10px;
+            font-family: "Shopify Sans", sans-serif;
+            font-size: 20px; /* Adjust font size */
+            letter-spacing: 2px; /* Add letter spacing */
+            text-transform: capitalize; /* Convert text to uppercase */
+            font-weight: bold; /* Make the font bold */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Add a text shadow */
+           
+        }
+        .tittleBar{
+            display: flex;
+            align-items: center;
+            height: 50px;
+            color: #fff;
+            background-color: #1b1d23;
+        }
+        .tittle{
+            
+            -webkit-app-region: drag;
+            -webkit-user-select: none;
+            user-select: none; 
+            margin-left: 10px;  /* Reduce margin-right */
+            flex: 1;
+            flex-grow: 1; /* Allow the title to grow to fill available space */
+            flex-shrink: 1; /* Allow the title to shrink to fit available space */
+            white-space: nowrap; /* Prevent the title from wrapping to the next line */
+            font-family: 'Segoe UI';
+            font-size: 16px; /* Set the initial font size */
+            font-weight: bold; /* Set font weight */
+            text-transform: uppercase; /* Convert text to uppercase */
+            letter-spacing: 1px; /* Adjust letter spacing for better readability */
+            color: #ffffff; /* Set text color */
+            text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5); /* Add a subtle text shadow */
+
+        }
+        .tittleBarButtons{
+            display: flex;
+            margin-left: auto;
+            height: 40px;
+        }
+        .topbar{
+            background-size: contain; /* Resize image to fit container */
+            background-repeat: no-repeat; /* Prevent image repetition */
+            background-position: center;
+            width: 40px; /* Set button width */
+            height: 40px; /* Set button height */
+            display: flex; /* Make buttons flex containers */
+            align-items: center; /* Center button content vertically */
+            justify-content: center; /* Center button content horizontally */
+            border: none; /* Remove default button border */
+            background-color: transparent;
+
+        }
+        .tittleBarButtons > .topbar.maxBtn{
+            filter: invert(1); /* Invert image colors */
+            background-image: url('icons/maximize_window_icon.png');
+            transition: filter 0.3s ease; 
+        }
+        .tittleBarButtons > .topbar.maxBtn:hover {
+            background-color: #bababa;  
+        }   
+        .tittleBarButtons > .topbar.endBtn{
+            filter: invert(1); /* Invert image colors */
+            background-image: url('icons/close_window_icon.png');
+            transition: filter 0.3s ease; 
+        }
+        .tittleBarButtons > .topbar.endBtn:hover {
+            background-color: #bababa;  
+        }  
+        .tittleBarButtons > .topbar.minBtn{
+            filter: invert(1); /* Invert image colors */
+            background-image: url('icons/minimize_window_icon.png');
+            transition: filter 0.3s ease; 
+        }
+        .tittleBarButtons > .topbar.minBtn:hover {
+            background-color: #bababa;  
+        }  
+
+        .progress-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin-top: 20px;
+            width: 300px;
+            height: 10px;
+            background-color: white;
+            position: relative;
+            border-radius: 10px;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #01a3e3;
+            border-radius: 10px;
+            position: absolute;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add a subtle shadow effect */
+        }
+
+        .progress-bar::after {
+            content: '';
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            background: radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 100%); /* Add a radial gradient for a glowing effect */
+            animation: glow 1.5s ease-in-out infinite alternate; /* Add a glow animation */
+        }
+
+        @keyframes glow {
+            from {
+                box-shadow: 0 0 10px rgba(0, 163, 227, 0.8), 0 0 20px rgba(0, 163, 227, 0.6), 0 0 30px rgba(0, 163, 227, 0.4);
+            }
+            to {
+                box-shadow: 0 0 20px rgba(0, 163, 227, 0.8), 0 0 40px rgba(0, 163, 227, 0.6), 0 0 60px rgba(0, 163, 227, 0.4);
+            }
+        }
+        /* .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #01a3e3;
+            border-radius: 10px;
+            position: absolute;
+        } */
+        .progress-label {
+            position: absolute;
+            border-radius: 10px;
+            color: #01a3e3;
+            top: 50%;
+            left: 100%;
+            transform: translate(30%, -50%);
+            font-size: large;
+            font-family: ui-sans-serif;
+        }
+        .state-label {
+            position: absolute;
+            display: block;
+            border-radius: 10px;
+            color: white;
+            top: calc(50% + 40px); 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: medium;
+            font-family: 'Roboto', Arial, sans-serif;
+            width: 300px;  /* Adjust the width as needed */
+            height: 30px;  /* Adjust the height as needed */
+            padding: 10px;  /* Adds space inside the box */
+            text-align: center;  /* Centers the text inside the box */
+            background-color: rgba(0, 0, 0, 0.6);   
+        }
+        #processResultContainer {
+            margin-top: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="mainApp">
+        <div class="topBar">
+            <div class="tittleBar">
+                <div class="tittle">Export / Upload (Web)</div>
+                <div class="tittleBarButtons">
+                    <button class="topbar minBtn" id="minBtn"></button>
+                    <button class="topbar maxBtn" id="maxBtn"></button>
+                    <button class="topbar endBtn" id="endBtn"></button>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    
+    <h2 class="progress-header", id="clientName">web user</h2>
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+        <div class="progress-label" id="progressLabel">0%</div><br>
+        <div class="state-label" id="stateLabel">Stages Description</div>
+    </div>
+    <div id="processResultContainer"></div> 
+
+    <script src="renderer.js"></script>
+    
+</body>
+</html>
