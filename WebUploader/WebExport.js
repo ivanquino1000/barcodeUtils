@@ -250,21 +250,19 @@ class Downloader extends EventEmitter {
         await page.click("a.dropdown-item.text-1");
 
         // Click on Time Period Selector
-        const timeRangeLocator = await page.getByPlaceholder("Seleccionar"); //$$('.el-select-dropdown__item');
+        const timeRangeLocator = await page.getByPlaceholder("Seleccionar"); 
         for (let i = 0; i < await timeRangeLocator.count(); i++) {
             if (await timeRangeLocator.nth(i).isVisible() && await timeRangeLocator.nth(i).isEnabled()) {
                 await timeRangeLocator.nth(i).click();
-                break;
             }
         }
 
         // Click the ALL option
-        const timeRangeOption = await page.locator('li.el-select-dropdown__item', { hasText: 'Todos' }); //$$('.el-select-dropdown__item');
+        const timeRangeOption = await page.locator('li.el-select-dropdown__item', { hasText: 'Todos' }); 
         console.log("TODOS matches : ", await timeRangeOption.count())
         for (let i = 0; i < await timeRangeOption.count(); i++) {
             if (await timeRangeOption.nth(i).isVisible() && await timeRangeOption.nth(i).isEnabled()) {
                 await timeRangeOption.nth(i).click();
-                break;
             }
         }
 
