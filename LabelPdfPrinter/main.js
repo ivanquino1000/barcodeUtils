@@ -193,30 +193,9 @@ async function printPDF(pdf) {
     }
 
     await print(pdf.path, options);
-    await new Promise((resolve) => setTimeout(resolve, getLogarithmicDelay(pdf.pageCopies)));
 
     console.log(`Pdf se envio correctamente:  "${pdf.pdfName}".`);
   } catch (err) {
     console.error(`Error printing to printer "${pdf.pdfName}":`, err);
   }
-}
-
-function getLogarithmicDelay(input) {
-  let delay;
-
-  if (input <= 20) {
-    // Logarithmic scaling between 2 and 5 seconds for inputs 1 to 20
-    delay = Math.log(input) * (7 - 3) / Math.log(20) + 3;
-  } else if (input <= 50) {
-    // Logarithmic scaling between 5 and 8 seconds for inputs 21 to 50
-    delay = Math.log(input) * (12 - 7) / Math.log(50) + 7;
-  } else {
-    // As input exceeds 50, the delay approaches 15 seconds
-    delay = Math.log(input) * (15 - 12) / Math.log(100) + 12;
-  }
-
-  // Ensure the delay is between 1 and 15 seconds
-  delay = Math.min(Math.max(delay, 1), 15);
-
-  return delay;
 }
