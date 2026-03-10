@@ -137,7 +137,11 @@ class Uploader extends EventEmitter {
         while (retryCounter < maxRetries) {
             try {
                 await this.loginArcaDgital(page, client);
-                await page.goto(client.Url, { timeout: 600000 }); // url-items
+
+                // Check if the page redirection after login is to items and not to deshboard || other
+                if (!page.url().includes(client.Url)) {
+                    await page.goto(client.Url, { waitUntil: 'load', timeout: 600000 }); // url-items
+                }
 
                 if (page.url().includes("items")) {
                     console.log(
@@ -215,8 +219,6 @@ class Uploader extends EventEmitter {
         // Click Export Button
         await page.getByText("Importar").click();
 
-        //await page.click('button.btn.btn-custom.btn-sm.mt-2.mr-2.dropdown-toggle');
-
         // Products Dropdown Option
         await page
             .locator(".dropdown-item.text-1")
@@ -224,29 +226,40 @@ class Uploader extends EventEmitter {
             .click();
 
         // Click on WareHouse Selector
-        await page.getByPlaceholder("Seleccionar").click();
 
-        //Select Principal warehouse
-        await page
-            .locator(".el-select-dropdown__item")
-            .getByText("Almacén")
-            .click();
+        //Select Principal warehouse - first in the list containing "Oficina"
+        const dropdown = page.locator('#tw-select-1');
+        await page.locator('#tw-select-1 option:has-text("Almacén")').waitFor({ state: 'attached' });
+
+        const value = await page.locator('#tw-select-1 option', { hasText: 'Oficina' }).first().getAttribute('value');
+        await dropdown.selectOption(value);
+
 
         //Select the Upload File Element and uploads the webapp Uploads Format
 
         // Find the input element by CSS selector
-        const inputElement = await page.$(".el-upload__input[name='file']");
+        const inputElement = await page.locator('input[type="file"]');
 
         // Set the input files for the input element
         await inputElement.setInputFiles(Local_UploadFile_Path_ArcaDigital);
 
         // PROCEED BUTTON
-        await page
-            .locator(".el-button.el-button--primary.el-button--small")
-            .getByText("Procesar")
-            .click();
+
+        page.locator('button:has-text("Procesar")').click();
+
         // Wait network to end
-        await page.waitForLoadState("networkidle", { timeout: 600000 });
+        try {
+            const successBanner = page.locator('.el-message--success');
+
+            await successBanner.waitFor({
+                state: 'attached', 
+                timeout: 600000    
+            });
+
+        } catch (error) {
+            throw new Error("El proceso terminó pero no se detectó el mensaje de éxito.");
+        }
+        
     }
 
     async loginArcaDgital(page, client) {
@@ -256,13 +269,18 @@ class Uploader extends EventEmitter {
         });
 
         let urlObject = UrlFactory(client.Url);
+        const loginUrl = urlObject.protocol + urlObject.domain + "/login";
 
-        await page.goto(urlObject.protocol + urlObject.domain + "/login", {
-            timeout: 600000,
-        });
-        await page.type("#email", client.User);
-        await page.type("#password", client.Password);
-        await page.click(".btn-signin");
+        await page.goto(loginUrl, { timeout: 600000 });
+
+        await page.locator('input[type="text"][name^="app-q-input-"]').fill(client.User, { timeout: 600000 }),
+            await page.locator('input[type="password"][name^="app-q-input-"]').fill(client.Password, { timeout: 600000 }),
+
+            await Promise.all([
+                page.waitForURL(url => !url.href.includes('login'), { waitUntil: 'networkidle', timeout: 600000 }),
+                page.click('button:has-text("Acceder")')
+            ]);
+
         return;
     }
 }

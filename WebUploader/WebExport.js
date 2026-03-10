@@ -6,6 +6,7 @@ const fs = require("node:fs/promises");
 const EventEmitter = require("events");
 const { glob, globSync, globStream, globStreamSync, Glob } = require("glob");
 const path = require("path");
+const { waitForDebugger } = require("node:inspector");
 
 const URL_Address_Local_Path = `${__dirname}/WebExportUrls.json`;
 const Platform_Downloads_Path = `${os.homedir}\\Downloads\\`;
@@ -148,8 +149,11 @@ class Downloader extends EventEmitter {
         while (retryCounter < maxRetries) {
             try {
                 await this.loginArcaDgital(page, client);
-                await page.goto(client.Url, { timeout: 600000 }); // url-items
-
+                // Check if the page redirection after login is to items and not to deshboard || other
+                if(!page.url().includes(client.Url)){
+                    await page.goto(client.Url, { waitUntil: 'load', timeout: 600000 }); // url-items
+                }
+            
                 if (page.url().includes("items")) {
                     console.log(
                         `Successfully navigated to the items page for ${client.name}`
@@ -220,13 +224,17 @@ class Downloader extends EventEmitter {
         });
 
         let urlObject = UrlFactory(client.Url);
+        const loginUrl = urlObject.protocol + urlObject.domain + "/login";
 
-        await page.goto(urlObject.protocol + urlObject.domain + "/login", {
-            timeout: 600000,
-        });
-        await page.type("#email", client.User);
-        await page.type("#password", client.Password);
-        await page.click(".btn-signin");
+        await page.goto(loginUrl, { timeout: 600000 });
+
+        await page.locator('input[type="text"][name^="app-q-input-"]').fill(client.User, { timeout: 600000 }),
+        await page.locator('input[type="password"][name^="app-q-input-"]').fill(client.Password, { timeout: 600000 }),
+
+        await Promise.all([
+            page.waitForURL(url => !url.href.includes('login'), { waitUntil: 'domcontentloaded', timeout: 600000 }),
+            page.click('button:has-text("Acceder")')
+        ]);
 
         return;
     }
@@ -250,16 +258,16 @@ class Downloader extends EventEmitter {
         await page.click("a.dropdown-item.text-1");
 
         // Click on Time Period Selector
-        const timeRangeLocator = await page.getByPlaceholder("Seleccionar"); 
+        const timeRangeLocator = await page.getByPlaceholder("Seleccionar");
         for (let i = 0; i < await timeRangeLocator.count(); i++) {
             if (await timeRangeLocator.nth(i).isVisible() && await timeRangeLocator.nth(i).isEnabled()) {
                 await timeRangeLocator.nth(i).click();
             }
         }
 
-        // Click the ALL option
-        const timeRangeOption = await page.locator('li.el-select-dropdown__item', { hasText: 'Todos' }); 
-        console.log("TODOS matches : ", await timeRangeOption.count())
+        // Click the ALL option - "all products in db"
+        const timeRangeOption = await page.locator('li.el-select-dropdown__item', { hasText: 'Todos' });
+        // console.log("TODOS matches : ", await timeRangeOption.count())
         for (let i = 0; i < await timeRangeOption.count(); i++) {
             if (await timeRangeOption.nth(i).isVisible() && await timeRangeOption.nth(i).isEnabled()) {
                 await timeRangeOption.nth(i).click();
