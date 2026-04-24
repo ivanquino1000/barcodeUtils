@@ -9,13 +9,13 @@ const Local_UploadFile_Path_ArcaDigital = path.resolve(
     __dirname,
     "..",
     "Config",
-    "items.xlsx"
+    "items.xlsx",
 );
 const Local_UploadFile_Path_Odoo = path.resolve(
     __dirname,
     "..",
     "Config",
-    "Odoo_Items.xls"
+    "Odoo_Items.xls",
 );
 const Upload_Result_Path = `${__dirname}/WebUploadResult.txt`;
 const URL_Address_Local_Path = `${__dirname}/WebUploadUrls.json`;
@@ -51,7 +51,7 @@ class Uploader extends EventEmitter {
             if (!browserExecutablePath.length) {
                 console.log(
                     "No executable found with this pattern:\n",
-                    chromiumExePattern
+                    chromiumExePattern,
                 );
                 return undefined;
             }
@@ -115,7 +115,7 @@ class Uploader extends EventEmitter {
                     break;
                 default:
                     console.log(
-                        `${client.name} = Invalid WebApp: ${client.Url}`
+                        `${client.name} = Invalid WebApp: ${client.Url}`,
                     );
                     break;
             }
@@ -140,31 +140,34 @@ class Uploader extends EventEmitter {
 
                 // Check if the page redirection after login is to items and not to deshboard || other
                 if (!page.url().includes(client.Url)) {
-                    await page.goto(client.Url, { waitUntil: 'load', timeout: 600000 }); // url-items
+                    await page.goto(client.Url, {
+                        waitUntil: "load",
+                        timeout: 600000,
+                    }); // url-items
                 }
 
                 if (page.url().includes("items")) {
                     console.log(
-                        `Successfully navigated to the items page for ${client.name}`
+                        `Successfully navigated to the items page for ${client.name}`,
                     );
                     break;
                 }
 
                 console.log(
-                    `Failed to redirect to the items page for ${client.name}`
+                    `Failed to redirect to the items page for ${client.name}`,
                 );
                 retryCounter++;
             } catch (error) {
                 console.error(
                     `Error during login attempt - [${retryCounter}]: \n `,
-                    error.message
+                    error.message,
                 );
                 retryCounter++;
 
                 //  Retry Limit Break out
                 if (retryCounter >= maxRetries) {
                     console.log(
-                        `Max login retry attempts reached for ${client.name}. Exiting.`
+                        `Max login retry attempts reached for ${client.name}. Exiting.`,
                     );
                     return "Failed";
                 }
@@ -186,14 +189,14 @@ class Uploader extends EventEmitter {
             } catch (error) {
                 console.error(
                     `Error during Upload Retry - ${uploadRetryCounter}: \n`,
-                    error.message
+                    error.message,
                 );
                 uploadRetryCounter++;
 
                 //  Retry Limit Break out
                 if (uploadRetryCounter >= uploadMaxRetries) {
                     console.log(
-                        `Max upload retry attempts reached for ${client.name}. Exiting.`
+                        `Max upload retry attempts reached for ${client.name}. Exiting.`,
                     );
                     await page.close();
                     return "Failed";
@@ -216,50 +219,63 @@ class Uploader extends EventEmitter {
             progress: 60,
         });
 
-        // Click Export Button
+        // Click Import Button
         await page.getByText("Importar").click();
 
+        //await page.click('button.btn.btn-custom.btn-sm.mt-2.mr-2.dropdown-toggle');
+
         // Products Dropdown Option
-        await page
-            .locator(".dropdown-item.text-1")
-            .getByText("Productos")
-            .click();
+
+        const productsButton = page.getByRole("button", { name: /Productos/i });
+        await productsButton.waitFor({ state: "visible" });
+        await productsButton.click();
 
         // Click on WareHouse Selector
+        const optionValue = await page
+            .locator("#tw-select-1 option")
+            .filter({ hasText: /almac.n.*oficina/i })
+            .getAttribute("value");
 
-        //Select Principal warehouse - first in the list containing "Oficina"
-        const dropdown = page.locator('#tw-select-1');
-        await page.locator('#tw-select-1 option:has-text("Almacén")').waitFor({ state: 'attached' });
+        // 2. Select by that value
+        await page.locator("#tw-select-1").selectOption(optionValue);
+        //await page.getByPlaceholder("Seleccionar").click();
 
-        const value = await page.locator('#tw-select-1 option', { hasText: 'Oficina' }).first().getAttribute('value');
-        await dropdown.selectOption(value);
+        //Select Principal warehouse
 
+        /* await page
+               .locator(".el-select-dropdown__item")
+               .filter({ hasText: /^Almacén$/ })
+               .click(); */
 
         //Select the Upload File Element and uploads the webapp Uploads Format
 
         // Find the input element by CSS selector
-        const inputElement = await page.locator('input[type="file"]');
+        const inputElement = await page.$('input[type="file"]');
 
         // Set the input files for the input element
         await inputElement.setInputFiles(Local_UploadFile_Path_ArcaDigital);
+        console.log("done uploadgin", Local_UploadFile_Path_ArcaDigital);
 
         // PROCEED BUTTON
-
-        page.locator('button:has-text("Procesar")').click();
-
+        await page.getByRole("button", { name: /Procesar/i }).click();
+        /* await page
+               .locator(".el-button.el-button--primary.el-button--small")
+               .getByText("Procesar")
+               .click(); */
         // Wait network to end
         try {
-            const successBanner = page.locator('.el-message--success');
+            const successBanner = page.locator(".el-message--success");
 
             await successBanner.waitFor({
-                state: 'attached', 
-                timeout: 600000    
+                state: "attached",
+                timeout: 600000,
             });
-
         } catch (error) {
-            throw new Error("El proceso terminó pero no se detectó el mensaje de éxito.");
+            throw new Error(
+                "El proceso terminó pero no se detectó el mensaje de éxito.",
+            );
         }
-        
+        await page.waitForLoadState("networkidle", { timeout: 600000 });
     }
 
     async loginArcaDgital(page, client) {
@@ -273,13 +289,19 @@ class Uploader extends EventEmitter {
 
         await page.goto(loginUrl, { timeout: 600000 });
 
-        await page.locator('input[type="text"][name^="app-q-input-"]').fill(client.User, { timeout: 600000 }),
-            await page.locator('input[type="password"][name^="app-q-input-"]').fill(client.Password, { timeout: 600000 }),
-
+        (await page
+            .locator('input[type="text"][name^="app-q-input-"]')
+            .fill(client.User, { timeout: 600000 }),
+            await page
+                .locator('input[type="password"][name^="app-q-input-"]')
+                .fill(client.Password, { timeout: 600000 }),
             await Promise.all([
-                page.waitForURL(url => !url.href.includes('login'), { waitUntil: 'networkidle', timeout: 600000 }),
-                page.click('button:has-text("Acceder")')
-            ]);
+                page.waitForURL((url) => !url.href.includes("login"), {
+                    waitUntil: "networkidle",
+                    timeout: 600000,
+                }),
+                page.click('button:has-text("Acceder")'),
+            ]));
 
         return;
     }

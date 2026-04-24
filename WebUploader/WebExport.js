@@ -1,4 +1,3 @@
-
 const { chromium } = require("playwright");
 const notifier = require("node-notifier");
 const os = require("os");
@@ -58,9 +57,9 @@ class Downloader extends EventEmitter {
             if (!browserExecutablePath.length) {
                 console.log(
                     "No executable found with this pattern:\n",
-                    chromiumExePattern
+                    chromiumExePattern,
                 );
-                return undefined
+                return undefined;
             }
             return browserExecutablePath[0];
         } catch (e) {
@@ -121,7 +120,7 @@ class Downloader extends EventEmitter {
                     break;
                 default:
                     console.log(
-                        `${client.name} = Invalid WebApp: ${client.Url}`
+                        `${client.name} = Invalid WebApp: ${client.Url}`,
                     );
                     break;
             }
@@ -150,32 +149,35 @@ class Downloader extends EventEmitter {
             try {
                 await this.loginArcaDgital(page, client);
                 // Check if the page redirection after login is to items and not to deshboard || other
-                if(!page.url().includes(client.Url)){
-                    await page.goto(client.Url, { waitUntil: 'load', timeout: 600000 }); // url-items
+                if (!page.url().includes(client.Url)) {
+                    await page.goto(client.Url, {
+                        waitUntil: "load",
+                        timeout: 600000,
+                    }); // url-items
                 }
-            
+
                 if (page.url().includes("items")) {
                     console.log(
-                        `Successfully navigated to the items page for ${client.name}`
+                        `Successfully navigated to the items page for ${client.name}`,
                     );
                     break;
                 }
 
                 console.log(
-                    `Failed to redirect to the items page for ${client.name}`
+                    `Failed to redirect to the items page for ${client.name}`,
                 );
                 retryCounter++;
             } catch (error) {
                 console.error(
                     `Error during login attempt - [${retryCounter}]: \n `,
-                    error.message
+                    error.message,
                 );
                 retryCounter++;
 
                 //  Retry Limit Break out
                 if (retryCounter >= maxRetries) {
                     console.log(
-                        `Max login retry attempts reached for ${client.name}. Exiting.`
+                        `Max login retry attempts reached for ${client.name}. Exiting.`,
                     );
                     return "Failed";
                 }
@@ -197,14 +199,14 @@ class Downloader extends EventEmitter {
             } catch (error) {
                 console.error(
                     `Error during Download Retry - ${downloadRetryCounter}: \n`,
-                    error.message
+                    error.message,
                 );
                 downloadRetryCounter++;
 
                 //  Retry Limit Break out
                 if (downloadRetryCounter >= downloadMaxRetries) {
                     console.log(
-                        `Max downlaod retry attempts reached for ${client.name}. Exiting.`
+                        `Max downlaod retry attempts reached for ${client.name}. Exiting.`,
                     );
                     return "Failed";
                 }
@@ -228,13 +230,19 @@ class Downloader extends EventEmitter {
 
         await page.goto(loginUrl, { timeout: 600000 });
 
-        await page.locator('input[type="text"][name^="app-q-input-"]').fill(client.User, { timeout: 600000 }),
-        await page.locator('input[type="password"][name^="app-q-input-"]').fill(client.Password, { timeout: 600000 }),
-
-        await Promise.all([
-            page.waitForURL(url => !url.href.includes('login'), { waitUntil: 'domcontentloaded', timeout: 600000 }),
-            page.click('button:has-text("Acceder")')
-        ]);
+        (await page
+            .locator('input[type="text"][name^="app-q-input-"]')
+            .fill(client.User, { timeout: 600000 }),
+            await page
+                .locator('input[type="password"][name^="app-q-input-"]')
+                .fill(client.Password, { timeout: 600000 }),
+            await Promise.all([
+                page.waitForURL((url) => !url.href.includes("login"), {
+                    waitUntil: "domcontentloaded",
+                    timeout: 600000,
+                }),
+                page.click('button:has-text("Acceder")'),
+            ]));
 
         return;
     }
@@ -247,16 +255,17 @@ class Downloader extends EventEmitter {
         });
 
         // Click Export Button
-        await page.click(
-            "button.btn.btn-custom.btn-sm.mt-2.mr-2.dropdown-toggle"
-        );
+        await page.getByRole("button", { name: /exportar/i }).click();
 
         // Wait for the dropdown menu to appear
-        await page.waitForSelector("a.dropdown-item.text-1");
+        const productosBtn = page.getByRole("button", { name: "Productos" });
+        await productosBtn.waitFor({ state: "visible" });
 
         // Click on the first element in the dropdown menu - Listado
-        await page.click("a.dropdown-item.text-1");
+        await productosBtn.click();
 
+        await page.selectOption("select#tw-select-1", "all");
+        /*
         // Click on Time Period Selector
         const timeRangeLocator = await page.getByPlaceholder("Seleccionar");
         for (let i = 0; i < await timeRangeLocator.count(); i++) {
@@ -265,32 +274,30 @@ class Downloader extends EventEmitter {
             }
         }
 
-        // Click the ALL option - "all products in db"
+        // Click the ALL option
         const timeRangeOption = await page.locator('li.el-select-dropdown__item', { hasText: 'Todos' });
-        // console.log("TODOS matches : ", await timeRangeOption.count())
+        console.log("TODOS matches : ", await timeRangeOption.count())
         for (let i = 0; i < await timeRangeOption.count(); i++) {
             if (await timeRangeOption.nth(i).isVisible() && await timeRangeOption.nth(i).isEnabled()) {
                 await timeRangeOption.nth(i).click();
             }
-        }
-
-        // Click on Procced Button
-        const ProccessButton = await page.$$(
-            ".el-button.el-button--primary.el-button--small"
-        );
+        } */
 
         // Start waiting for download before clicking. Note no await.
         const downloadPromise = page.waitForEvent("download", {
             timeout: 600000,
         });
 
-        await ProccessButton[2].click();
+        // Click on Procced Button
+        const ProccessButton = page.getByRole("button", { name: /Procesar/i });
+        await ProccessButton.click();
+
         //await page.getByText('Download file').click();
         const download = await downloadPromise;
 
         // Wait for the download process to complete and save the downloaded file.
         await download.saveAs(
-            Platform_Downloads_Path + download.suggestedFilename()
+            Platform_Downloads_Path + download.suggestedFilename(),
         );
     }
 }
