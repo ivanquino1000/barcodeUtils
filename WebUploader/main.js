@@ -63,7 +63,7 @@ const createWindow = async () => {
     mainWindow.setTitle(
         operationProcess == "upload"
             ? "Subida de Productos"
-            : "Descarga de Productos"
+            : "Descarga de Productos",
     );
     mainWindow.loadFile("progressView.html");
 
@@ -114,7 +114,7 @@ function webUpload_init() {
 }
 
 function launchExcel() {
-    let fontInstaller = new FontInstaller();
+    const fontInstaller = new FontInstaller();
     fontInstaller.init();
 
     const excelPath = path.resolve(__dirname, "../Src/Barcodes.xlsm");
@@ -143,7 +143,7 @@ function webDownload_init() {
     exportProcess.on("progressUpdate", (action) => {
         const { stageDescription, progress } = action;
         mainWindow.webContents.send("update-progress", action);
-        console.log(`Download update: ${stageDescription} ${progress} `);
+        console.log(`Download update: ${stageDescription} `);
     });
 
     exportProcess.on("completedOperation", (result) => {

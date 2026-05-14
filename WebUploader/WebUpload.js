@@ -1,6 +1,7 @@
 const fs = require("node:fs/promises");
 const { chromium } = require("playwright");
 const os = require("os");
+const notifier = require("node-notifier");
 const path = require("path");
 const { glob, globSync, globStream, globStreamSync, Glob } = require("glob");
 const EventEmitter = require("events");
@@ -20,21 +21,34 @@ const Local_UploadFile_Path_Odoo = path.resolve(
 const Upload_Result_Path = `${__dirname}/WebUploadResult.txt`;
 const URL_Address_Local_Path = `${__dirname}/WebUploadUrls.json`;
 
+const SUCCESS_NOTIFICATION = {
+    title: "Subida de Archivos",
+    message: "EXITOSO",
+    timeout: 300000,
+    icon: `${__dirname}/icons/notifier-success.webp`,
+};
+let FAILED_NOTIFICATION = {
+    title: "Subida de Archivos",
+    message: "FALLIDA",
+    timeout: 300000,
+    icon: `${__dirname}/icons/notifier-error.png`,
+};
+
 class Uploader extends EventEmitter {
     constructor() {
         super();
-        this.clients = {};
+        this.config = {};
         this.browser = null;
     }
     async main() {
         try {
             await this.updateResultFile("Undefined");
-            this.clients = await this.getClientsData();
+            this.config = await this.getClientsData();
             this.browser = await chromium.launch({
                 headless: false,
                 executablePath: await this.findBrowserExecutable(),
             });
-            await this.UploadWebApp();
+            await this.UploadWeb();
         } catch (e) {
             console.error("Uploader Error: \n", e);
         }
@@ -85,45 +99,57 @@ class Uploader extends EventEmitter {
     }
 
     // * Main Upload : Redirects to client.webType Methods
-    async UploadWebApp() {
-        let ResultsLogger = "";
+    async UploadWeb() {
+        let hasFailures = false;
 
-        for (const client of this.clients.clients) {
-            this.emit("newClient", client.name);
-            let uploadResult = "Undefined";
+        const uploadStrategies = {
+            ArcaDigital: (client) => this.uploadArcaDigital(client),
+            //Odoo:(client)=>this.uploadOdoo(client),
+        };
 
-            switch (client.WebAppType) {
-                case "ArcaDigital":
-                    this.emit("progressUpdate", {
-                        stageDescription: "Accediendo al sitio web",
-                        progress: 10,
-                    });
+        const orders = [];
+        const notificationResults = [];
 
-                    uploadResult = await this.uploadArcaDigital(client);
-                    this.emit("completedOperation", uploadResult);
+        for (const client of this.config.clients) {
+            const strategy = uploadStrategies[client.WebAppType];
 
-                    ResultsLogger += `${client.name}=${uploadResult}\n`;
-                    break;
-                case "Odoo":
-                    this.emit("progressUpdate", {
-                        stageDescription: "Accediendo al sitio web",
-                        progress: 10,
-                    });
-                    uploadResult = await this.uploadOdoo(client);
-                    this.emit("completedOperation", uploadResult);
-                    ResultsLogger += `${client.name}=${uploadResult}\n`;
-                    break;
-                default:
-                    console.log(
-                        `${client.name} = Invalid WebApp: ${client.Url}`,
-                    );
-                    break;
+            if (!strategy) {
+                console.log(
+                    `${client.name} = Unsupported WebApp: ${client.Url}`,
+                );
+                continue;
             }
+
+            const task = (async (client) => {
+                this.emit("newClient", client.name);
+                let result = "Undefined";
+
+                this.emit("progressUpdate", {
+                    stageDescription: "Accediendo al sitio web",
+                    progress: 10,
+                });
+                result = await strategy(client);
+                notificationResults.push(`${client.name}: ${result}`);
+                this.emit("completedOperation", result);
+                return result;
+            })(client);
+
+            orders.push(task);
         }
+        const results = await Promise.all(orders);
 
-        console.log("ResultsLogger: ", ResultsLogger);
+        console.log("uploadResults: ", results);
+        hasFailures = results.some((res) => res !== "Success");
 
-        this.updateResultFile(ResultsLogger);
+        const notification = {
+            title: !hasFailures ? "Descarga Exitosa" : "Descarga Fallida",
+            message: notificationResults.join("\n"),
+            timeout: 300000,
+            icon: `${__dirname}/icons/notifier-success.webp`,
+        };
+        notifier.notify(notification);
+
+        this.updateResultFile(results);
         this.browser.close();
     }
 
@@ -148,13 +174,13 @@ class Uploader extends EventEmitter {
 
                 if (page.url().includes("items")) {
                     console.log(
-                        `Successfully navigated to the items page for ${client.name}`,
+                        `${client.name}: Successfully navigated to the items page`,
                     );
                     break;
                 }
 
                 console.log(
-                    `Failed to redirect to the items page for ${client.name}`,
+                    `${client.name}: Failed to redirect to the items page`,
                 );
                 retryCounter++;
             } catch (error) {
@@ -184,7 +210,7 @@ class Uploader extends EventEmitter {
 
         while (uploadRetryCounter < uploadMaxRetries) {
             try {
-                await this.beginUploadArcaDigital(page);
+                await this.upload_to_arca(page);
                 break;
             } catch (error) {
                 console.error(
@@ -207,64 +233,64 @@ class Uploader extends EventEmitter {
             }
         }
 
-        console.log("SUCCESS OPERATION");
-        await page.close();
+        console.log(`${client.name}: Upload Completed`);
         return "Success";
     }
 
-    async beginUploadArcaDigital(page) {
+    async upload_to_arca(page) {
         this.emit("progressUpdate", {
-            stageDescription:
-                "obteniendo la interfaz de subida de archivos(productos)",
+            stageDescription: "Iniciando Subida...",
             progress: 60,
         });
 
         // Click Import Button
-        await page.getByText("Importar").click();
+        const importButton = await page
+            .getByRole("button", { name: /importar/i })
+            .first();
 
-        //await page.click('button.btn.btn-custom.btn-sm.mt-2.mr-2.dropdown-toggle');
+        await importButton.click();
 
         // Products Dropdown Option
+        const productsButton = page
+            .getByRole("button", { name: /productos/i })
+            .filter({ visible: true });
 
-        const productsButton = page.getByRole("button", { name: /Productos/i });
-        await productsButton.waitFor({ state: "visible" });
         await productsButton.click();
 
-        // Click on WareHouse Selector
-        const optionValue = await page
-            .locator("#tw-select-1 option")
-            .filter({ hasText: /almac.n.*oficina/i })
+        //Warehouse <select> -or / role: combobox
+        const warehouseSelect = page.locator(
+            'select:has(option:text-matches("almac.n", "i"))',
+        );
+        /* //it ahould also work :
+        const warehouseSelect = await page
+        .getByRole("combobox")
+        .filter({ has: page.locator("option", { name: /almac.n/i }), visible: true });
+*/
+        // WareHouse Option . = wildcard, .* = wildcardbridge any number of character
+        const warehouseOption = await page
+            .locator(
+                'option:not([disabled]):text-matches("almac.n.*oficina", "i")',
+            )
+            .filter({ visible: true })
             .getAttribute("value");
 
         // 2. Select by that value
-        await page.locator("#tw-select-1").selectOption(optionValue);
-        //await page.getByPlaceholder("Seleccionar").click();
-
-        //Select Principal warehouse
-
-        /* await page
-               .locator(".el-select-dropdown__item")
-               .filter({ hasText: /^Almacén$/ })
-               .click(); */
-
-        //Select the Upload File Element and uploads the webapp Uploads Format
+        await warehouseSelect.first().selectOption(warehouseOption);
 
         // Find the input element by CSS selector
-        const inputElement = await page.$('input[type="file"]');
+        const inputElement = await page.locator('input[type="file"]');
 
         // Set the input files for the input element
         await inputElement.setInputFiles(Local_UploadFile_Path_ArcaDigital);
-        console.log("done uploadgin", Local_UploadFile_Path_ArcaDigital);
+        //console.log("done uploading", Local_UploadFile_Path_ArcaDigital);
 
         // PROCEED BUTTON
-        await page.getByRole("button", { name: /Procesar/i }).click();
-        /* await page
-               .locator(".el-button.el-button--primary.el-button--small")
-               .getByText("Procesar")
-               .click(); */
-        // Wait network to end
+        await page.getByRole("button", { name: /procesar/i }).click();
+
         try {
-            const successBanner = page.locator(".el-message--success");
+            const successBanner = page
+                .getByRole("alert")
+                .filter({ hastext: /correcta/i });
 
             await successBanner.waitFor({
                 state: "attached",
@@ -284,25 +310,31 @@ class Uploader extends EventEmitter {
             progress: 30,
         });
 
-        let urlObject = UrlFactory(client.Url);
+        const urlObject = UrlFactory(client.Url);
         const loginUrl = urlObject.protocol + urlObject.domain + "/login";
 
         await page.goto(loginUrl, { timeout: 600000 });
 
-        (await page
-            .locator('input[type="text"][name^="app-q-input-"]')
-            .fill(client.User, { timeout: 600000 }),
-            await page
-                .locator('input[type="password"][name^="app-q-input-"]')
-                .fill(client.Password, { timeout: 600000 }),
-            await Promise.all([
-                page.waitForURL((url) => !url.href.includes("login"), {
-                    waitUntil: "networkidle",
-                    timeout: 600000,
-                }),
-                page.click('button:has-text("Acceder")'),
-            ]));
+        const usernameInput = page
+            .locator('input[type="text"]') // or , {name: /correo/i})
+            .and(page.getByLabel(/correo/i))
+            .filter({ visible: true });
+        const passwordInput = page
+            .locator('input[type="password"]') // or , {name: /correo/i})
+            .and(page.getByLabel(/contrase/i))
+            .filter({ visible: true });
 
+        // can't use promise all due to single focus limitation in webBrowsers
+        await usernameInput.first().fill(client.User);
+        await passwordInput.first().fill(client.Password);
+
+        await Promise.all([
+            page.waitForURL((url) => !url.href.includes("login"), {
+                waitUntil: "domcontentloaded",
+                timeout: 600000,
+            }),
+            page.click('button:has-text("Acceder")'),
+        ]);
         return;
     }
 }

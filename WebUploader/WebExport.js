@@ -1,10 +1,11 @@
 const { chromium } = require("playwright");
-const notifier = require("node-notifier");
-const os = require("os");
-const fs = require("node:fs/promises");
+const { promiseHooks } = require("node:v8");
 const EventEmitter = require("events");
 const { glob, globSync, globStream, globStreamSync, Glob } = require("glob");
 const path = require("path");
+const notifier = require("node-notifier");
+const os = require("os");
+const fs = require("node:fs/promises");
 const { waitForDebugger } = require("node:inspector");
 
 const URL_Address_Local_Path = `${__dirname}/WebExportUrls.json`;
@@ -15,32 +16,32 @@ const SUCCESS_NOTIFICATION = {
     title: "Descarga de Archivos",
     message: "EXITOSO",
     timeout: 300000,
-    icon: __dirname + "/icons/notifier-success.webp",
+    icon: `${__dirname}/icons/notifier-success.webp`,
 };
 const FAILED_NOTIFICATION = {
     title: "Descarga de Archivos",
     message: "FALLIDA",
     timeout: 300000,
-    icon: __dirname + "/icons/notifier-error.png",
+    icon: `${__dirname}/icons/notifier-error.png`,
 };
 
 class Downloader extends EventEmitter {
     constructor() {
         super();
-        this.clients = {};
+        this.config = {};
         this.browser = null;
     }
 
     async main() {
         try {
             await this.updateResultFile("Undefined");
-            this.clients = await this.getClientsData();
+            this.config = await this.getClientsData();
 
             this.browser = await chromium.launch({
                 headless: false,
                 executablePath: await this.findBrowserExecutable(),
             });
-            await this.ExportFromWeb();
+            await this.DownloadWeb();
         } catch (e) {
             console.error("Downloader Error: \n ", e);
         }
@@ -89,52 +90,55 @@ class Downloader extends EventEmitter {
         }
     }
 
-    async ExportFromWeb() {
-        let exportResult = "";
+    async DownloadWeb() {
+        let hasFailures = false;
 
-        for (const client of this.clients.clients) {
-            this.emit("newClient", client.name);
-            let result = "Undefined";
+        const downloadStrategies = {
+            ArcaDigital: (client) => this.ExportArcaDigital(client),
+            Odoo: (client) => this.exportOdoo(client),
+        };
 
-            switch (client.WebAppType) {
-                case "ArcaDigital":
-                    this.emit("progressUpdate", {
-                        stageDescription: "Accediendo al sitio web",
-                        progress: 10,
-                    });
+        const orders = [];
+        const notificationResults = [];
+        for (const client of this.config.clients) {
+            const strategy = downloadStrategies[client.WebAppType];
 
-                    result = await this.ExportArcaDigital(client);
-                    this.emit("completedOperation", result);
-                    exportResult += `${result}`;
-
-                    break;
-                case "Odoo":
-                    this.emit("progressUpdate", {
-                        stageDescription: "Accediendo al sitio web",
-                        progress: 10,
-                    });
-
-                    result = await this.exportOdoo(client);
-                    this.emit("completedOperation", result);
-                    exportResult += `${result}`;
-                    break;
-                default:
-                    console.log(
-                        `${client.name} = Invalid WebApp: ${client.Url}`,
-                    );
-                    break;
+            if (!strategy) {
+                console.log(
+                    `${client.name} = Unsupported WebApp: ${client.Url}`,
+                );
+                continue;
             }
+
+            const task = (async (client) => {
+                this.emit("newClient", client.name);
+                let result = "Undefined";
+
+                this.emit("progressUpdate", {
+                    stageDescription: "Accediendo al sitio web",
+                    progress: 10,
+                });
+                result = await strategy(client);
+                notificationResults.push(`${client.name}: ${result}`);
+                this.emit("completedOperation", result);
+                return result;
+            })(client);
+            orders.push(task);
         }
+        const results = await Promise.all(orders);
 
-        console.log("exportResult: ", exportResult);
+        console.log("downloadResults: ", results);
+        hasFailures = results.some((res) => res !== "Success");
 
-        const notification =
-            exportResult === "Success"
-                ? SUCCESS_NOTIFICATION
-                : FAILED_NOTIFICATION;
+        const notification = {
+            title: !hasFailures ? "Descarga Exitosa" : "Descarga Fallida",
+            message: notificationResults.join("\n"),
+            timeout: 300000,
+            icon: `${__dirname}/icons/notifier-success.webp`,
+        };
         notifier.notify(notification);
 
-        this.updateResultFile(exportResult);
+        this.updateResultFile(results);
         this.browser.close();
     }
 
@@ -158,13 +162,13 @@ class Downloader extends EventEmitter {
 
                 if (page.url().includes("items")) {
                     console.log(
-                        `Successfully navigated to the items page for ${client.name}`,
+                        `${client.name}: Successfully navigated to the items page`,
                     );
                     break;
                 }
 
                 console.log(
-                    `Failed to redirect to the items page for ${client.name}`,
+                    `${client.name}: Failed to redirect to the items page`,
                 );
                 retryCounter++;
             } catch (error) {
@@ -194,7 +198,7 @@ class Downloader extends EventEmitter {
 
         while (downloadRetryCounter < downloadMaxRetries) {
             try {
-                await this.start_Download_ArcaDigital(page);
+                await this.download_from_arca(page);
                 break;
             } catch (error) {
                 console.error(
@@ -215,7 +219,7 @@ class Downloader extends EventEmitter {
             }
         }
 
-        console.log("SUCCESS OPERATION");
+        console.log(`${client.name}: Download Completed`);
         return "Success";
     }
 
@@ -225,63 +229,72 @@ class Downloader extends EventEmitter {
             progress: 30,
         });
 
-        let urlObject = UrlFactory(client.Url);
+        const urlObject = UrlFactory(client.Url);
         const loginUrl = urlObject.protocol + urlObject.domain + "/login";
 
         await page.goto(loginUrl, { timeout: 600000 });
 
-        (await page
-            .locator('input[type="text"][name^="app-q-input-"]')
-            .fill(client.User, { timeout: 600000 }),
-            await page
-                .locator('input[type="password"][name^="app-q-input-"]')
-                .fill(client.Password, { timeout: 600000 }),
-            await Promise.all([
-                page.waitForURL((url) => !url.href.includes("login"), {
-                    waitUntil: "domcontentloaded",
-                    timeout: 600000,
-                }),
-                page.click('button:has-text("Acceder")'),
-            ]));
+        const usernameInput = page
+            .locator('input[type="text"]') // or , {name: /correo/i})
+            .and(page.getByLabel(/correo/i))
+            .filter({ visible: true });
+        const passwordInput = page
+            .locator('input[type="password"]') // or , {name: /correo/i})
+            .and(page.getByLabel(/contrase/i))
+            .filter({ visible: true });
 
+        /*  console.log(
+            `Username Box: ${await usernameInput.first().evaluate((el) => el.outerHTML)}`,
+        );
+        console.log(
+            `Password Box: ${await passwordInput.first().evaluate((el) => el.outerHTML)}`,
+        );
+        */
+
+        // can't use promise all due to single focus limitation in webBrowsers
+        await usernameInput.first().fill(client.User);
+        await passwordInput.first().fill(client.Password);
+
+        await Promise.all([
+            page.waitForURL((url) => !url.href.includes("login"), {
+                waitUntil: "domcontentloaded",
+                timeout: 600000,
+            }),
+            page.click('button:has-text("Acceder")'),
+        ]);
         return;
     }
 
-    async start_Download_ArcaDigital(page) {
+    async download_from_arca(page) {
         this.emit("progressUpdate", {
-            stageDescription:
-                "obteniendo la interfaz de subida de archivos(productos)",
+            stageDescription: "Iniciando descarga...",
             progress: 60,
         });
 
         // Click Export Button
-        await page.getByRole("button", { name: /exportar/i }).click();
+        const exportButton = await page
+            .getByRole("button", { name: /exportar/i })
+            .first();
+
+        await exportButton.click();
 
         // Wait for the dropdown menu to appear
-        const productosBtn = page.getByRole("button", { name: "Productos" });
-        await productosBtn.waitFor({ state: "visible" });
+        const productsOption = page
+            .getByRole("button", { name: /productos/i })
+            .first();
+        await productsOption.waitFor({ state: "visible" });
 
-        // Click on the first element in the dropdown menu - Listado
-        await productosBtn.click();
+        // Click on the first element in the dropdown menu
+        await productsOption.click();
 
-        await page.selectOption("select#tw-select-1", "all");
-        /*
-        // Click on Time Period Selector
-        const timeRangeLocator = await page.getByPlaceholder("Seleccionar");
-        for (let i = 0; i < await timeRangeLocator.count(); i++) {
-            if (await timeRangeLocator.nth(i).isVisible() && await timeRangeLocator.nth(i).isEnabled()) {
-                await timeRangeLocator.nth(i).click();
-            }
-        }
-
-        // Click the ALL option
-        const timeRangeOption = await page.locator('li.el-select-dropdown__item', { hasText: 'Todos' });
-        console.log("TODOS matches : ", await timeRangeOption.count())
-        for (let i = 0; i < await timeRangeOption.count(); i++) {
-            if (await timeRangeOption.nth(i).isVisible() && await timeRangeOption.nth(i).isEnabled()) {
-                await timeRangeOption.nth(i).click();
-            }
-        } */
+        //select	CSS Type Selector
+        //:has(...)	CSS Level 4
+        //option	CSS Type Selector
+        //[value="all"]	CSS Attribute Selector
+        const timeIntervalDropdown = await page.locator(
+            'select:has(option[value="all"])',
+        );
+        await timeIntervalDropdown.selectOption("all");
 
         // Start waiting for download before clicking. Note no await.
         const downloadPromise = page.waitForEvent("download", {
@@ -297,7 +310,8 @@ class Downloader extends EventEmitter {
 
         // Wait for the download process to complete and save the downloaded file.
         await download.saveAs(
-            Platform_Downloads_Path + download.suggestedFilename(),
+            Platform_Downloads_Path +
+                `${Date.now()}_${download.suggestedFilename()}`, //download.suggestedFilename(),
         );
     }
 }
