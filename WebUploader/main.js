@@ -4,7 +4,6 @@ const { app, BrowserWindow, screen, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const child_process = require("child_process");
-
 const { Downloader } = require("./WebExport");
 const { Uploader } = require("./WebUpload");
 const FontInstaller = require("./installFont");
@@ -29,7 +28,7 @@ let mainWindow;
 app.on("ready", () => {
     createWindow();
     //  * Upload Specification Handler
-    if (operationProcess == "upload") {
+    if (operationProcess === "upload") {
         webUpload_init();
     } else {
         webDownload_init();
@@ -59,9 +58,10 @@ const createWindow = async () => {
         x: width - 500,
         y: height - 450,
     });
+
     // mainWindow.webContents.openDevTools();
     mainWindow.setTitle(
-        operationProcess == "upload"
+        operationProcess === "upload"
             ? "Subida de Productos"
             : "Descarga de Productos",
     );

@@ -12,19 +12,6 @@ const URL_Address_Local_Path = `${__dirname}/WebExportUrls.json`;
 const Platform_Downloads_Path = `${os.homedir}\\Downloads\\`;
 const Export_Result_Path = `${__dirname}/WebExportResult.txt`;
 
-const SUCCESS_NOTIFICATION = {
-    title: "Descarga de Archivos",
-    message: "EXITOSO",
-    timeout: 300000,
-    icon: `${__dirname}/icons/notifier-success.webp`,
-};
-const FAILED_NOTIFICATION = {
-    title: "Descarga de Archivos",
-    message: "FALLIDA",
-    timeout: 300000,
-    icon: `${__dirname}/icons/notifier-error.png`,
-};
-
 class Downloader extends EventEmitter {
     constructor() {
         super();

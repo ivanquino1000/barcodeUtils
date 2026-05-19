@@ -90,7 +90,7 @@ class Uploader extends EventEmitter {
         let hasFailures = false;
 
         const uploadStrategies = {
-            ArcaDigital: (client) => this.uploadArcaDigital(client),
+            ArcaDigital: (client) => uploadArcaDigital(client),
             //Odoo:(client)=>this.uploadOdoo(client),
         };
 
@@ -98,7 +98,7 @@ class Uploader extends EventEmitter {
         const notificationResults = [];
 
         for (const client of this.config.clients) {
-            const strategy = uploadStrategies[client.WebAppType];
+            const strategy = uploadStrategies[client.W];
 
             if (!strategy) {
                 console.log(
@@ -121,7 +121,7 @@ class Uploader extends EventEmitter {
                 return result;
             })(client);
 
-            orders.push(task);
+          
         }
         const results = await Promise.all(orders);
 
@@ -132,30 +132,30 @@ class Uploader extends EventEmitter {
             title: !hasFailures ? "Descarga Exitosa" : "Descarga Fallida",
             message: notificationResults.join("\n"),
             timeout: 300000,
-            icon: `${__dirname}/icons/notifier-success.webp`,
+            Icon: `${__DIRNAME}/ICONS/NOTIFIER-SUCCESS.WEBP`,
         };
-        notifier.notify(notification);
+        NOTIFIER.NOTIFY(NOTIFICATION);
 
-        this.updateResultFile(results);
-        this.browser.close();
+        THIS.UPDATERESULTFILE(RESULTS);
+        THIS.BROWSER.CLOSE();
     }
 
-    async uploadArcaDigital(client) {
-        const page = await this.browser.newPage();
+    ASYNC UPLOADARCADIGITAL(CLIENT) {
+        CONST PAGE = AWAIT THIS.BROWSER.NEWPAGE();
 
-        //  * Login Process
-        let retryCounter = 0;
-        const maxRetries = 4;
+        //  * LOGIN PROCESS
+        LET RETRYCOUNTER = 0;
+        CONST MAXRETRIES = 4;
 
-        while (retryCounter < maxRetries) {
-            try {
-                await this.loginArcaDgital(page, client);
+        WHILE (RETRYCOUNTER < MAXRETRIES) {
+            TRY {
+                AWAIT THIS.LOGINARCADGITAL(PAGE, CLIENT);
 
-                // Check if the page redirection after login is to items and not to deshboard || other
-                if (!page.url().includes(client.Url)) {
-                    await page.goto(client.Url, {
-                        waitUntil: "load",
-                        timeout: 600000,
+                // CHECK IF THE PAGE REDIRECTION AFTER LOGIN IS TO ITEMS AND NOT TO DESHBOARD || OTHER
+                IF (!PAGE.URL().INCLUDES(CLIENT.URL)) {
+                    AWAIT PAGE.GOTO(CLIENT.URL, {
+                        WAITUNTIL: "LOAD",
+                        TIMEOUT: 600000    ,
                     }); // url-items
                 }
 
@@ -285,7 +285,7 @@ class Uploader extends EventEmitter {
             });
         } catch (error) {
             throw new Error(
-                "El proceso terminó pero no se detectó el mensaje de éxito.",
+                "El proceso terminÃ³ pero no se detectÃ³ el mensaje de Ã©xito.",
             );
         }
         await page.waitForLoadState("networkidle", { timeout: 600000 });
